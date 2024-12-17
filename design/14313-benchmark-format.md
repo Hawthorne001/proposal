@@ -56,38 +56,40 @@ For example, running compress/flate's benchmarks  produces this output:
 	BenchmarkEncodeDigitsCompress1e5-8	       1	  12301511 ns/op	   8.13 MB/s
 	BenchmarkEncodeDigitsCompress1e6-8	       1	 137962041 ns/op	   7.25 MB/s
 
-The testing package always reports ns/op, and each benchmark can request the addition of MB/s (throughput) and also B/op and allocs/op (allocation rates).
+The testing package always reports ns/op, and directly supports the
+addition of MB/s (throughput) and also B/op and allocs/op (allocation
+rates).
+Benchmarks can report additional metrics with any custom unit using
+[`B.ReportMetric`](https://pkg.go.dev/testing#B.ReportMetric).
 
 ### Benchmark processors
 
 Multiple tools have been written that process this format,
-most notably [benchcmp](https://godoc.org/golang.org/x/tools/cmd/benchcmp)
-and its more statistically valid successor [benchstat](https://godoc.org/rsc.io/benchstat).
-There is also [benchmany](https://godoc.org/github.com/aclements/go-misc/benchmany)'s plot subcommand
+most notably [benchcmp](https://pkg.go.dev/golang.org/x/tools/cmd/benchcmp)
+and its more statistically valid successor [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat).
+There is also [benchmany](https://pkg.go.dev/github.com/aclements/go-misc/benchmany)'s plot subcommand
 and likely more unpublished programs.
 
 ### Benchmark runners
 
 Multiple tools have also been written that generate this format.
 In addition to the standard Go testing package,
-[compilebench](https://godoc.org/rsc.io/compilebench)
+[compilebench](https://pkg.go.dev/golang.org/x/tools/cmd/compilebench)
 generates this data format based on runs of the Go compiler,
 and Austin's unpublished shellbench generates this data format
 after running an arbitrary shell command.
 
-The [golang.org/x/benchmarks/bench](https://golang.org/x/benchmarks/bench) benchmarks
-are notable for _not_ generating this format,
-which has made all analysis of those results
+The [golang.org/x/benchmarks](https://golang.org/x/benchmarks) benchmarks
+are notable for _not_ originally generating this format,
+which made all analysis of those results
 more complex than we believe it should be.
-We intend to update those benchmarks to generate the standard format,
-once a standard format is defined.
 Part of the motivation for the proposal is to avoid
 the need to process custom output formats in future benchmarks.
 
 ## Proposal
 
 A Go benchmark data file is a UTF-8 textual file consisting of a sequence of lines.
-Configuration lines and benchmark result lines, described below,
+Configuration lines, benchmark result lines, and unit metadata lines, described below,
 have semantic meaning in the reporting of benchmark results.
 
 All other lines in the data file, including but not limited to
@@ -148,7 +150,7 @@ In the example, the CPU cost is reported per-operation and the
 throughput is reported per-second; neither is a total that
 depends on the number of iterations.
 
-### Value Units
+#### Value Units
 
 A value's unit string is expected to specify not only the measurement unit
 but also, as needed, a description of what is being measured.
@@ -165,7 +167,7 @@ and rescale known measurement units.
 For example, consistently large “ns/op” or “L1-miss-ns/op”
 might be rescaled to “ms/op” or “L1-miss-ms/op” for display.
 
-### Benchmark Name Configuration
+#### Benchmark Name Configuration
 
 In the current testing package, benchmark names correspond to Go identifiers:
 each benchmark must be written as a different Go function.
@@ -181,6 +183,49 @@ choosing names that are key=value pairs;
 that slash-prefixed key=value pairs in the benchmark name are
 treated by benchmark data processors as per-benchmark 
 configuration values.
+
+### Unit metadata
+
+When a benchmark reports units outside the standard units implemented
+by the testing package, it can be useful for tools to understand
+additional metadata about those units.
+
+A unit metadata line has the form
+
+	Unit <unit> <key>=<value> <key>=<value> ...
+
+The fields are separated by runs of space characters (as defined by
+`unicode.IsSpace`), and space characters are not allowed within unit,
+key, or value.
+Keys must not contain `=`.
+
+It is an error to specify different values for any given unit and key,
+even on different unit metadata lines.
+That is, once unit metadata is specified, it can't be overridden.
+Specifying the same value for a key multiple times is not an error.
+
+Unit metadata applies to all following benchmark result lines, though
+it is unspecified whether it applies to earlier benchmark results
+lines.
+This allows for stream-oriented processing of benchmark results.
+
+Keys are not constrained, but the following keys have predefined
+meanings:
+
+- `better={higher,lower}` indicates whether higher or lower values of
+  this unit are better (indicate an improvement).
+  By default, ns/op, B/op, and allocs/op are `better=lower`, and MB/s
+  is `better=higher`.
+  Other units do not assume a default.
+
+- `assume={nothing,exact}` indicates what statistical assumption to
+  make when considering distributions of values.
+  `nothing` means to make no statistical assumptions (e.g., use
+  non-parametric methods) and `exact` means to assume measurements are
+  exact (repeated measurement does not increase confidence).
+  The default is `nothing`.
+  In the future we may also support `normal`, but that's almost never
+  the right assumption for benchmarks.
 
 ### Example
 

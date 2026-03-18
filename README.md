@@ -335,7 +335,7 @@ If so, they document the decision and its rationale on the issue.
 
 If consensus among the architects cannot be reached,
 which is even more unusual,
-the arbiter (currently [rsc@](mailto:rsc@golang.org))
+the arbiter (currently [austin@](mailto:austin@google.com))
 reviews the discussion and decides the next step,
 documenting the decision and its rationale on the issue.
 

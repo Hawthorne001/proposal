@@ -88,7 +88,12 @@ There is a short list of changes that are typically not in scope for the proposa
 
 - Making API changes in internal packages, since those APIs are not publicly visible.
 - Making API or command-line changes in golang.org/x/build, since that is code to run the Go project, not for users to import and depend on.
-- Adding new system call numbers or direct system call wrappers (`//sys` lines) in golang.org/x/sys.
+- Adding new system call numbers or direct system call wrappers (`//sys` lines)
+  in golang.org/x/sys. Additions to x/sys/windows with a clear 1:1 mapping from
+  the Windows API to the Go API can be accepted without proposal review.
+  Determining whether a change is a 1:1 mapping is up to the golang.org/x/sys/windows
+  maintainers. Any additional APIs, including methods on types that aren't
+  clearly reflected in the Windows API, must go through Go proposal review.
 - Adding new C-equivalent data structures to support those system calls.
 
 Again, if in doubt, file a proposal.
